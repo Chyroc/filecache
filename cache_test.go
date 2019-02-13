@@ -1,7 +1,6 @@
 package filecache_test
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -15,8 +14,9 @@ import (
 
 func TestNew(t *testing.T) {
 	as := assert.New(t)
+	defer os.Remove("./test")
 
-	as.Nil(os.Remove("./test"))
+	os.Remove("./test")
 	c := filecache.New("./test").(*filecache.CacheImpl)
 
 	t.Run("", func(t *testing.T) {
@@ -140,6 +140,6 @@ func TestNew(t *testing.T) {
 		for _, v := range kvs {
 			as.Equal(v.Key, v.Val)
 		}
-		as.Len(kvs,1000)
+		as.Len(kvs, 1000)
 	})
 }
