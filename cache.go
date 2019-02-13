@@ -16,6 +16,7 @@ type Cache interface {
 	Get(key string) (string, error)
 	Set(key, val string, ttl time.Duration) error
 	TTL(key string) (time.Duration, error)
+	Del(key string) error
 }
 
 func unixMs(ttl time.Duration) int64 {
@@ -67,7 +68,12 @@ func New(filepath string) Cache {
 		return c
 	}
 
-	if err := c.fileExpansion(); err != nil {
+	c.fileStat, c.err = c.file.Stat()
+	if c.err != nil {
+		return c
+	}
+
+	if err := c.loadFile(); err != nil {
 		return c
 	}
 
@@ -81,6 +87,29 @@ type CacheImpl struct {
 	fileStat    os.FileInfo
 	CurrentSize int
 	mmap        mmap.MMap
+}
+
+func (r *CacheImpl) loadFile() error {
+	r.fileStat, r.err = r.file.Stat()
+	if r.err != nil {
+		return r.err
+	}
+
+	if r.fileStat.Size()%bufSize != 0 {
+		r.err = InvalidFileSize
+		return r.err
+	}
+
+	if r.fileStat.Size() == 0 {
+		return r.fileExpansion()
+	}
+
+	r.mmap, r.err = mmap.Map(r.file)
+	if r.err != nil {
+		return r.err
+	}
+
+	return nil
 }
 
 func (r *CacheImpl) fileExpansion() error {
@@ -128,6 +157,7 @@ type kv struct {
 	val       string
 	expiredAt int // ms
 	ttl       int // ms
+	offset    int
 }
 
 func (r *CacheImpl) get(key string) (*kv, error) {
@@ -172,7 +202,13 @@ func (r *CacheImpl) get(key string) (*kv, error) {
 				if err != nil {
 					return nil, err
 				}
-				return &kv{key: key, val: string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), expiredAt: expiredAt, ttl: ttl}, nil
+				return &kv{
+					key:       key,
+					val:       string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]),
+					expiredAt: expiredAt,
+					ttl:       ttl,
+					offset:    currentOffset,
+				}, nil
 			} else {
 				// 全部flag为1，但是没有key重合的
 				// 或者flag为0
@@ -269,4 +305,17 @@ func (r *CacheImpl) TTL(key string) (time.Duration, error) {
 	}
 
 	return time.Duration(kv.ttl) * time.Millisecond, nil
+}
+
+func (r *CacheImpl) Del(key string) error {
+	kv, err := r.get(key)
+	if err != nil {
+		if err == NotFound {
+			return nil
+		}
+		return err
+	}
+
+	r.mmap[kv.offset] = 0
+	return nil
 }

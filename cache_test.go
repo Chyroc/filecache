@@ -86,20 +86,42 @@ func TestNew(t *testing.T) {
 		as.Nil(c.Set("63125", "63125", time.Second))
 	})
 
-	t.Run("large count get set", func(t *testing.T) {
+	t.Run("large count get set del", func(t *testing.T) {
 		as.Nil(os.Remove("./test"))
 		c = filecache.New("./test").(*filecache.CacheImpl)
 
+		// set
 		for i := 0; i <= 63124; i++ {
 			j := strconv.Itoa(i)
 			as.Nil(c.Set(j, j, time.Minute), i)
 		}
 
+		// get exist
 		for i := 0; i <= 61324; i++ {
 			j := strconv.Itoa(i)
 			v, err := c.Get(j)
 			as.Nil(err)
 			as.Equal(v, j)
+		}
+
+		// del
+		for i := 0; i <= 61324; i++ {
+			j := strconv.Itoa(i)
+			as.Nil(c.Del(j))
+		}
+
+		// get not-exist
+		for i := 0; i <= 61324; i++ {
+			j := strconv.Itoa(i)
+			_, err := c.Get(j)
+			as.Equal(filecache.NotFound, err)
+		}
+
+		// set again: should success
+		// set
+		for i := 0; i <= 63124; i++ {
+			j := strconv.Itoa(i)
+			as.Nil(c.Set(j, j, time.Minute), i)
 		}
 	})
 }
