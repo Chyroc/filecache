@@ -4,7 +4,54 @@ cache library that store data in local file.
 
 ## usage
 
+```go
+func Example_Cache() {
+	cache := filecache.New("./cache.data")
+	defer os.Remove("./cache.data")
+
+	_, err := cache.Get("not-exist")
+	fmt.Println(err)
+
+	fmt.Println(cache.Set("k", "v", time.Minute))
+
+	v, err := cache.Get("k")
+	fmt.Println(v, err)
+
+	ttl, err := cache.TTL("k")
+	fmt.Println(int(math.Ceil(ttl.Seconds())), err)
+
+	time.Sleep(time.Second)
+
+	ttl, err = cache.TTL("k")
+	fmt.Println(int(math.Ceil(ttl.Seconds())), err)
+
+	fmt.Println(cache.Del("k"))
+
+	_, err = cache.Get("k")
+	fmt.Println(err)
+
+	// output:
+	// not found
+	// <nil>
+	// v <nil>
+	// 60 <nil>
+	// 59 <nil>
+	// <nil>
+	// not found
+}
+```
+
 ## benchmark
+
+```
+chyroc			"github.com/Chyroc/filecache"
+dannyBen		"github.com/DannyBen/filecache"
+fabiorphp		"github.com/fabiorphp/cachego"
+gadelkareem		"github.com/gadelkareem/cachita"
+gookit			"github.com/gookit/cache"
+huntsman		"github.com/huntsman-li/go-cache"
+miguelmota		"github.com/miguelmota/go-filecache"
+```
 
 ```
 pkg: github.com/Chyroc/filecache-benchmark
