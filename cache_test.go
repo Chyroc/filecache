@@ -69,18 +69,37 @@ func TestNew(t *testing.T) {
 		_, err = c.Get("")
 		as.Equal(filecache.KeyTooShort, err)
 	})
-}
 
-func TestCacheImpl_Get(t *testing.T) {
-	as := assert.New(t)
+	t.Run("too large", func(t *testing.T) {
+		as.Nil(os.Remove("./test"))
+		c = filecache.New("./test").(*filecache.CacheImpl)
 
-	as.Nil(os.Remove("./test"))
-	c := filecache.New("./test")
+		for i := 0; i <= 63124; i++ {
+			j := strconv.Itoa(i)
+			as.Nil(c.Set(j, j, time.Second), i)
+		}
 
-	for i := 0; i < 63125; i++ {
-		j := strconv.Itoa(i)
-		as.Nil(c.Set(j, j, time.Second), i)
-	}
+		as.Equal(filecache.FileSizeTooLarge, c.Set("63125", "63125", time.Second))
 
-	as.Equal(filecache.FileSizeTooLarge, c.Set("63125", "63125", time.Second))
+		as.Nil(os.Remove("./test"))
+		c = filecache.New("./test").(*filecache.CacheImpl)
+		as.Nil(c.Set("63125", "63125", time.Second))
+	})
+
+	t.Run("large count get set", func(t *testing.T) {
+		as.Nil(os.Remove("./test"))
+		c = filecache.New("./test").(*filecache.CacheImpl)
+
+		for i := 0; i <= 63124; i++ {
+			j := strconv.Itoa(i)
+			as.Nil(c.Set(j, j, time.Minute), i)
+		}
+
+		for i := 0; i <= 61324; i++ {
+			j := strconv.Itoa(i)
+			v, err := c.Get(j)
+			as.Nil(err)
+			as.Equal(v, j)
+		}
+	})
 }

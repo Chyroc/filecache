@@ -93,7 +93,7 @@ func (r *CacheImpl) fileExpansion() error {
 		r.err = InvalidFileSize
 		return r.err
 	}
-	if r.fileStat.Size() > 95*1024*1024 { // 已经大于95M，再增加5M，就大于100M了，本库设计中，最大文件大小为100M
+	if r.fileStat.Size() > (bufCount-1)*bufSize { // 已经大于95M，再增加5M，就大于100M了，本库设计中，最大文件大小为100M
 		r.err = FileSizeTooLarge
 		return r.err
 	}
@@ -142,39 +142,41 @@ func (r *CacheImpl) get(key string) (*kv, error) {
 	}
 
 	region := r.region(key) // 0 ~ mod-1
-	regionOffset := region * docCount * docLength
 	keyBytes := []byte(key)
 
-	for i := 0; i < docCount; i++ {
-		currentOffset := regionOffset + docLength*i
-		if r.mmap[currentOffset] == 1 {
-			// 当前有数据，判断key是否和给定的key重合
-			keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
-			if err != nil {
-				return nil, err
-			}
-			keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
-			if !bytes.Equal(keyBytes, keyBytesFromMM) {
-				continue
-			}
+	for j := 0; j < int(r.fileStat.Size())/bufSize; j++ {
+		regionOffset := j*bufSize + region*docCount*docLength
+		for i := 0; i < docCount; i++ {
+			currentOffset := regionOffset + docLength*i
+			if r.mmap[currentOffset] == 1 {
+				// 当前有数据，判断key是否和给定的key重合
+				keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
+				if err != nil {
+					return nil, err
+				}
+				keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
+				if !bytes.Equal(keyBytes, keyBytesFromMM) {
+					continue
+				}
 
-			expiredAt, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
-			now := int(time.Now().UnixNano() / int64(1000000))
-			ttl := expiredAt - now
-			if ttl < 0 {
-				// 过期了
-				// TODO: delete
-				return nil, NotFound
-			}
+				expiredAt, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
+				now := int(time.Now().UnixNano() / int64(1000000))
+				ttl := expiredAt - now
+				if ttl < 0 {
+					// 过期了
+					// TODO: delete
+					return nil, NotFound
+				}
 
-			valLen, err := binaryInt(r.mmap[currentOffset+3 : currentOffset+5])
-			if err != nil {
-				return nil, err
+				valLen, err := binaryInt(r.mmap[currentOffset+3 : currentOffset+5])
+				if err != nil {
+					return nil, err
+				}
+				return &kv{key: key, val: string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), expiredAt: expiredAt, ttl: ttl}, nil
+			} else {
+				// 全部flag为1，但是没有key重合的
+				// 或者flag为0
 			}
-			return &kv{key: key, val: string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), expiredAt: expiredAt, ttl: ttl}, nil
-		} else {
-			// 全部flag为1，但是没有key重合的
-			// 或者flag为0
 		}
 	}
 
