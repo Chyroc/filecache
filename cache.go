@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	mmap "github.com/Chyroc/filecache/internal/gommap"
-	//"github.com/edsrzf/mmap-go"
-	"github.com/huichen/murmur"
 	"os"
 	"time"
+
+	"github.com/huichen/murmur"
+
+	mmap "github.com/Chyroc/filecache/internal/gommap"
 )
 
 type Cache interface {
@@ -39,7 +39,6 @@ var KeyTooShort = errors.New("key too short")
 var KeyTooLong = errors.New("key too long")
 var ValueTooShort = errors.New("value too short")
 var ValueTooLong = errors.New("value too long")
-var DocFull = errors.New("doc full")
 
 const entryCount = 512 // mod
 const docLength = 1280
@@ -98,12 +97,51 @@ func (r *CacheImpl) region(key string) int {
 }
 
 func (r *CacheImpl) Get(key string) (string, error) {
+	keyLen := len(key)
+
 	if r.err != nil {
 		return "", r.err
+	} else if keyLen > MaxLengthKey {
+		return "", KeyTooLong
+	} else if keyLen == 0 {
+		return "", KeyTooShort
 	}
 
 	region := r.region(key) // 0 ~ mod-1
-	fmt.Println(region)
+	regionOffset := region * docCount * docLength
+	keyBytes := []byte(key)
+
+	for i := 0; i < docCount; i++ {
+		currentOffset := regionOffset + docLength*i
+		if r.mmap[currentOffset] == 1 {
+			// 当前有数据，判断key是否和给定的key重合
+			keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
+			if err != nil {
+				return "", err
+			}
+			keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
+			if !bytes.Equal(keyBytes, keyBytesFromMM) {
+				continue
+			}
+
+			expiredTimestampMS, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
+			if int(time.Now().UnixNano()/int64(1000000)) > expiredTimestampMS {
+				// 过期了
+				// TODO: delete
+				return "", NotFound
+			}
+
+			valLen, err := binaryInt(r.mmap[currentOffset+3 : currentOffset+5])
+			if err != nil {
+				return "", err
+			}
+			return string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), nil
+		} else {
+			// 全部flag为1，但是没有key重合的
+			// 或者flag为0
+		}
+	}
+
 	return "", NotFound
 }
 
@@ -125,7 +163,6 @@ func (r *CacheImpl) Set(key, val string, ttl time.Duration) error {
 
 	region := r.region(key) // 0 ~ 511
 	regionOffset := region * docCount * docLength
-
 	keyBytes := []byte(key)
 
 	offset := -1
