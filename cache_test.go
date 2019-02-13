@@ -1,16 +1,60 @@
 package filecache_test
 
 import (
+	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Chyroc/filecache"
+
+	chyrocFileCache "github.com/Chyroc/filecache"
+	dannyBenFileCache "github.com/DannyBen/filecache"
+	fabiorphpFileCache "github.com/fabiorphp/cachego"
+	gadelkareemFileCache "github.com/gadelkareem/cachita"
+	gookitFileCache "github.com/gookit/cache"
+	huntsmanFileCache "github.com/huntsman-li/go-cache"
+	miguelmotaFileCache "github.com/miguelmota/go-filecache"
+	"github.com/stretchr/testify/assert"
 )
+
+func Example_Cache() {
+	cache := filecache.New("./cache.data")
+	defer os.Remove("./cache.data")
+
+	_, err := cache.Get("not-exist")
+	fmt.Println(err)
+
+	fmt.Println(cache.Set("k", "v", time.Minute))
+
+	v, err := cache.Get("k")
+	fmt.Println(v, err)
+
+	ttl, err := cache.TTL("k")
+	fmt.Println(int(math.Ceil(ttl.Seconds())), err)
+
+	time.Sleep(time.Second)
+
+	ttl, err = cache.TTL("k")
+	fmt.Println(int(math.Ceil(ttl.Seconds())), err)
+
+	fmt.Println(cache.Del("k"))
+
+	_, err = cache.Get("k")
+	fmt.Println(err)
+
+	// output:
+	// not found
+	// <nil>
+	// v <nil>
+	// 60 <nil>
+	// 59 <nil>
+	// <nil>
+	// not found
+}
 
 func TestNew(t *testing.T) {
 	as := assert.New(t)
@@ -142,4 +186,184 @@ func TestNew(t *testing.T) {
 		}
 		as.Len(kvs, 1000)
 	})
+}
+
+func BenchmarkFileCache(b *testing.B) {
+	as := assert.New(b)
+
+	b.Run("chyroc", func(b *testing.B) {
+		file := "./test-file-chyroc"
+		defer os.RemoveAll(file)
+		os.RemoveAll(file)
+
+		b.ResetTimer()
+
+		c := chyrocFileCache.New(file)
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Set(j, j, time.Second))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				v, err := c.Get(strconv.Itoa(i))
+				as.Nil(err)
+				as.Equal(j, v)
+			}
+		}
+	})
+
+	b.Run("huntsman", func(b *testing.B) {
+		for _, v := range []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"} {
+			defer os.RemoveAll(v)
+			os.RemoveAll(v)
+		}
+
+		b.ResetTimer()
+
+		c := huntsmanFileCache.NewFileCacher()
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Put(j, j, 100))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				vv := c.Get(strconv.Itoa(i))
+				v, ok := vv.(string)
+				as.True(ok)
+				as.Equal(j, v)
+			}
+		}
+
+	})
+
+	b.Run("fabiorphp", func(b *testing.B) {
+		file := "./test-file-fabiorphp"
+		os.RemoveAll(file)
+		as.Nil(os.Mkdir(file, 0755))
+		defer os.RemoveAll(file)
+
+		b.ResetTimer()
+
+		c := fabiorphpFileCache.NewFile(file)
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Save(j, j, time.Minute))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				v, err := c.Fetch(strconv.Itoa(i))
+				as.Nil(err)
+				as.Equal(j, v)
+			}
+		}
+	})
+
+	b.Run("dannyBen", func(b *testing.B) {
+		file := "./test-file-dannyBen"
+		os.RemoveAll(file)
+		as.Nil(os.Mkdir(file, 0755))
+		defer os.RemoveAll(file)
+
+		b.ResetTimer()
+
+		c := dannyBenFileCache.Handler{file, 600}
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Set(j, []byte(j)))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Equal(j, string(c.Get(strconv.Itoa(i))))
+			}
+		}
+	})
+
+	// too slow, skip
+	b.Run("gookit", func(b *testing.B) {
+		file := "./test-file-gookit"
+		os.RemoveAll(file)
+		defer os.RemoveAll(file)
+
+		b.Skip()
+		b.ResetTimer()
+
+		c := gookitFileCache.NewFileCache(file)
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Set(j, j, time.Minute))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				vv := c.Get(strconv.Itoa(i))
+				v, ok := vv.(string)
+				as.True(ok)
+				as.Equal(j, v)
+			}
+		}
+	})
+
+	b.Run("gadelkareem", func(b *testing.B) {
+		file := "./test-file-gadelkareem"
+		os.RemoveAll(file)
+		defer os.RemoveAll(file)
+
+		b.ResetTimer()
+
+		c, err := gadelkareemFileCache.NewFileCache(file, time.Minute, time.Minute)
+		as.Nil(err)
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(c.Put(j, j, time.Minute))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				var v string
+				as.Nil(c.Get(strconv.Itoa(i), &v))
+				as.Equal(j, v)
+			}
+		}
+	})
+
+	b.Run("miguelmota", func(b *testing.B) {
+		file := "./test-file-miguelmota"
+		os.RemoveAll(file)
+		defer os.RemoveAll(file)
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				as.Nil(miguelmotaFileCache.Set(j, j, time.Minute))
+			}
+
+			for i := 0; i <= 1000; i++ {
+				j := strconv.Itoa(i)
+				var v string
+				ok, err := miguelmotaFileCache.Get(strconv.Itoa(i), &v)
+				as.True(ok)
+				as.Nil(err)
+				as.Equal(j, v)
+			}
+		}
+	})
+
 }

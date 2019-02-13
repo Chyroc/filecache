@@ -2,6 +2,37 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:99674a75f3ec0db9edf779ccc22c155b0fb8f038dbe393c1f0eaa7c2738f8fd3"
+  name = "github.com/DannyBen/filecache"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0062e037330cd276c29abda23bdacdc9c1b4a484"
+
+[[projects]]
+  digest = "1:b67d9fb93495f20c1650448395a35d8c8a05cc1744bdd9986f5bc69d5d114f22"
+  name = "github.com/Unknwon/com"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "41959bdd855fb7db467f78865d5f9044507df1cd"
+  version = "v2"
+
+[[projects]]
+  digest = "1:d8f9145c361920507a4f85ffb7f70b96beaedacba2ce8c00aa663adb08689d3e"
+  name = "github.com/bradfitz/gomemcache"
+  packages = ["memcache"]
+  pruneopts = "UT"
+  revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
+
+[[projects]]
+  digest = "1:5f7414cf41466d4b4dd7ec52b2cd3e481e08cfd11e7e24fef730c0e483e88bb1"
+  name = "github.com/coreos/bbolt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "63597a96ec0ad9e6d43c3fc81e809909e0237461"
+  version = "v1.3.2"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -10,12 +41,84 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:7ce9352d8a74e0ce11f140a451d8a73aa628db7da102f128967d939f995913a9"
+  name = "github.com/fabiorphp/cachego"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "00358b3945d087f9713e2435279b56936b7ef8cb"
+  version = "0.7.0"
+
+[[projects]]
+  branch = "test/benchmark-parallel"
+  digest = "1:9dbee7c86f34ecd62d10d3aabcd1624433e4419768766f9a55465b36031c4592"
+  name = "github.com/gadelkareem/cachita"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "fd1f364589b51547b429c2feafc47efe8d4ccdfb"
+
+[[projects]]
+  digest = "1:ad53d1f710522a38d1f0e5e0a55a194b1c6b2cd8e84313568e43523271f0cf62"
+  name = "github.com/go-redis/redis"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+    "internal/util",
+  ]
+  pruneopts = "UT"
+  revision = "22be8a3eaf992c828cecb69dc07348313bf08d2e"
+  version = "v6.15.1"
+
+[[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:488345c03c355146a7325318c22311b5e108a4dfc8ffbe94b535046b6c757574"
+  name = "github.com/gookit/cache"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a028f20ce6e02523aa5c929dce055d87f1d848f0"
+
+[[projects]]
   branch = "master"
   digest = "1:cfc2b2ae62813a9b9e8e74b34e7babb1d08ec56c27db6474a25bcde4fd66e0c1"
   name = "github.com/huichen/murmur"
   packages = ["."]
   pruneopts = "UT"
   revision = "e0489551cf5116e27d7cc69d97a53cdbdd028acf"
+
+[[projects]]
+  branch = "master"
+  digest = "1:7715205d2dc7b5285cd7bf253a33c15174d991f9e514e9de62419156976a1804"
+  name = "github.com/huntsman-li/go-cache"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5b13b836032989752e97abe4a0a06101e9a55cd6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a4a6fd90912e7a62478a6afa75f64b9ae865ad5c243c54b7dfd83ae94af0ac2e"
+  name = "github.com/miguelmota/go-filecache"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "de73e75f3c6a2c556dc042265592cd489b6900ee"
+
+[[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -41,11 +144,108 @@
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
   version = "v1.20.0"
 
+[[projects]]
+  digest = "1:3810ea14d85aabc511e032f8c817e4f2276af72ea4346f223725e0aaaf1f5c10"
+  name = "github.com/vmihailenco/msgpack"
+  packages = [
+    ".",
+    "codes",
+  ]
+  pruneopts = "UT"
+  revision = "b962d79429a3c5135cca9ed528943f1551ec04df"
+  version = "v4.0.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:76ee51c3f468493aff39dbacc401e8831fbb765104cbf613b89bef01cf4bad70"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  pruneopts = "UT"
+  revision = "3a22650c66bd7f4fb6d1e8072ffd7b75c8a27898"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8207c052fb873f83c61a5aa16f6add5feb9881eda2112b56f69fd3b9e7f55c3f"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  pruneopts = "UT"
+  revision = "983097b1a8a340cd1cc7df17d735154d89e10b1a"
+
+[[projects]]
+  digest = "1:56dfffc6e6ceeaebb6db73e02a846a92a850c53130078682993bd028a2ef717d"
+  name = "google.golang.org/appengine"
+  packages = [
+    ".",
+    "datastore",
+    "internal",
+    "internal/app_identity",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/modules",
+    "internal/remote_api",
+  ]
+  pruneopts = "UT"
+  revision = "e9657d882bb81064595ca3b56cbe2546bbabf7b1"
+  version = "v1.4.0"
+
+[[projects]]
+  branch = "v1"
+  digest = "1:3443b1423511a78a2108f907e8ab347e3e16db19b2ab6d3219d75d88839757c1"
+  name = "gopkg.in/bsm/ratelimit.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "db14e161995a5177acef654cb0dd785e8ee8bc22"
+
+[[projects]]
+  digest = "1:8b4bb15de2e698d359eeec15c42453567c98972a70c8619946050360ec02ec32"
+  name = "gopkg.in/ini.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "6ed8d5f64cd79a498d1f3fab5880cc376ce41bbe"
+  version = "v1.41.0"
+
+[[projects]]
+  branch = "v2"
+  digest = "1:988de7520a09024d5d94cd99bd545afbf194893994ec759b1cda0a0bbb6adb80"
+  name = "gopkg.in/mgo.v2"
+  packages = [
+    ".",
+    "bson",
+    "internal/json",
+    "internal/sasl",
+    "internal/scram",
+  ]
+  pruneopts = "UT"
+  revision = "9856a29383ce1c59f308dd1cf0363a79b5bef6b5"
+
+[[projects]]
+  digest = "1:daa8366d166ba867fb55c77ce5db9c03b2e4e235cd39300f8b3d8f743c6a9267"
+  name = "gopkg.in/redis.v4"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/errors",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+  ]
+  pruneopts = "UT"
+  revision = "c938162545c57136fa59879746bc65d0f1db3d1e"
+  version = "v4.2.4"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/DannyBen/filecache",
+    "github.com/fabiorphp/cachego",
+    "github.com/gadelkareem/cachita",
+    "github.com/gookit/cache",
     "github.com/huichen/murmur",
+    "github.com/huntsman-li/go-cache",
+    "github.com/miguelmota/go-filecache",
     "github.com/stretchr/testify/assert",
     "github.com/urfave/cli",
   ]
