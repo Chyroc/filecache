@@ -3,6 +3,7 @@ package filecache_test
 import (
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,16 +53,34 @@ func TestNew(t *testing.T) {
 		as.Nil(err)
 		as.True(ttl <= time.Second && ttl >= time.Second-10*time.Millisecond)
 	})
+
+	t.Run("invalid length", func(t *testing.T) {
+		var err error
+		long := strings.Repeat("x", 9999)
+
+		as.Equal(filecache.KeyTooShort, c.Set("", "v", time.Second))
+		as.Equal(filecache.ValueTooShort, c.Set("k", "", time.Second))
+		as.Equal(filecache.KeyTooLong, c.Set(long, "v", time.Second))
+		as.Equal(filecache.ValueTooLong, c.Set("k", long, time.Second))
+
+		_, err = c.Get(long)
+		as.Equal(filecache.KeyTooLong, err)
+
+		_, err = c.Get("")
+		as.Equal(filecache.KeyTooShort, err)
+	})
 }
 
-func BenchmarkCacheImpl_Get(b *testing.B) {
-	as := assert.New(b)
+func TestCacheImpl_Get(t *testing.T) {
+	as := assert.New(t)
 
 	as.Nil(os.Remove("./test"))
 	c := filecache.New("./test")
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < 63125; i++ {
 		j := strconv.Itoa(i)
 		as.Nil(c.Set(j, j, time.Second), i)
 	}
+
+	as.Equal(filecache.FileSizeTooLarge, c.Set("63125", "63125", time.Second))
 }

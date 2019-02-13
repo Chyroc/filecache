@@ -39,12 +39,15 @@ var KeyTooShort = errors.New("key too short")
 var KeyTooLong = errors.New("key too long")
 var ValueTooShort = errors.New("value too short")
 var ValueTooLong = errors.New("value too long")
+var InvalidFileSize = errors.New("invalid file size")
+var FileSizeTooLarge = errors.New("file size too large(>100M)")
 
+const bufCount = 20 // 一个buf 5M，20个100M
+const bufSize = 5242880
 const entryCount = 512 // mod
 const docLength = 1280
 const docCount = 8
 const docHeaderLength = 1 + 2 + 2 + 7
-const minFileSize = 5242880
 
 const MaxLengthKey = 244
 const MaxLengthValue = 1024
@@ -56,7 +59,7 @@ const MaxLengthValue = 1024
 func New(filepath string) Cache {
 	c := &CacheImpl{
 		filepath:    filepath,
-		CurrentSize: minFileSize, // B
+		CurrentSize: bufSize, // B
 	}
 
 	c.file, c.err = os.OpenFile(filepath, os.O_CREATE|os.O_RDWR, 0600)
@@ -64,23 +67,10 @@ func New(filepath string) Cache {
 		return c
 	}
 
-	info, err := c.file.Stat()
-	c.err = err
-	if err != nil {
+	if err := c.fileExpansion(); err != nil {
 		return c
 	}
 
-	fill := make([]byte, c.CurrentSize-int(info.Size()))
-	for i := 0; i < c.CurrentSize-int(info.Size()); i++ {
-		fill[i] = 0
-	}
-
-	if _, c.err = c.file.WriteAt(fill, info.Size()); c.err != nil {
-		return c
-	}
-
-	//c.mmap, c.err = mmap.Map(c.file, 0, mmap.RDWR)
-	c.mmap, c.err = mmap.Map(c.file)
 	return c
 }
 
@@ -88,8 +78,45 @@ type CacheImpl struct {
 	err         error
 	filepath    string
 	file        *os.File
+	fileStat    os.FileInfo
 	CurrentSize int
 	mmap        mmap.MMap
+}
+
+func (r *CacheImpl) fileExpansion() error {
+	r.fileStat, r.err = r.file.Stat()
+	if r.err != nil {
+		return r.err
+	}
+
+	if r.fileStat.Size()%bufSize != 0 {
+		r.err = InvalidFileSize
+		return r.err
+	}
+	if r.fileStat.Size() > 95*1024*1024 { // 已经大于95M，再增加5M，就大于100M了，本库设计中，最大文件大小为100M
+		r.err = FileSizeTooLarge
+		return r.err
+	}
+
+	fill := make([]byte, bufSize)
+	for i := 0; i < bufSize; i++ {
+		fill[i] = 0
+	}
+
+	if _, r.err = r.file.WriteAt(fill, r.fileStat.Size()); r.err != nil {
+		return r.err
+	}
+
+	r.mmap, r.err = mmap.Map(r.file)
+	if r.err != nil {
+		return r.err
+	}
+	r.fileStat, r.err = r.file.Stat()
+	if r.err != nil {
+		return r.err
+	}
+
+	return nil
 }
 
 func (r *CacheImpl) region(key string) int {
@@ -184,24 +211,33 @@ func (r *CacheImpl) Set(key, val string, ttl time.Duration) error {
 	keyBytes := []byte(key)
 
 	offset := -1
-	for i := 0; i < docCount; i++ {
-		currentOffset := regionOffset + docLength*i
-		if r.mmap[currentOffset] == 1 {
-			// 当前有数据，判断key是否和给定的key重合
-			keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
-			if err != nil {
+	for j := 0; j < bufCount && offset < 0; j++ {
+		for i := 0; i < docCount; i++ {
+			currentOffset := bufSize*j + regionOffset + docLength*i
+			if r.mmap[currentOffset] == 1 {
+				// 当前有数据，判断key是否和给定的key重合
+				keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
+				if err != nil {
+					return err
+				}
+				keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
+				if bytes.Equal(keyBytes, keyBytesFromMM) {
+					offset = currentOffset
+					break
+				}
+			} else if offset < 0 { // r.mmap[currentOffset] == 0
+				// 将第一个遇见的0doc给offset
+				offset = currentOffset
+			} else {
+				// 全部flag为1，但是没有key重合的
+			}
+		}
+
+		// 当前文件快没有找到，并且下一次寻址的文件块尚未填充数据
+		if offset < 0 && r.fileStat.Size() <= int64((j+1)*bufSize) {
+			if err := r.fileExpansion(); err != nil {
 				return err
 			}
-			keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
-			if bytes.Equal(keyBytes, keyBytesFromMM) {
-				offset = currentOffset
-				break
-			}
-		} else if offset < 0 { // r.mmap[currentOffset] == 0
-			// 将第一个遇见的0doc给offset
-			offset = currentOffset
-		} else {
-			// 全部flag为1，但是没有key重合的
 		}
 	}
 
