@@ -138,7 +138,6 @@ func TestNew(t *testing.T) {
 		kvs, err := c.Range()
 		as.Nil(err)
 		for _, v := range kvs {
-			fmt.Println(v)
 			as.Equal(v.Key, v.Val)
 		}
 		as.Len(kvs,1000)

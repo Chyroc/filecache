@@ -86,7 +86,7 @@ func cmdTTL() cli.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("got:", ttl)
+			fmt.Printf("%q\n", ttl.String())
 			return nil
 		},
 		Flags: []cli.Flag{
@@ -114,7 +114,7 @@ func cmdDel() cli.Command {
 			if err := filecache.New(file).Del(c.Args()[0]); err != nil {
 				return err
 			}
-			fmt.Println("done")
+			fmt.Println("OK")
 			return nil
 		},
 		Flags: []cli.Flag{
