@@ -96,15 +96,22 @@ func (r *CacheImpl) region(key string) int {
 	return int(murmur.Murmur3([]byte(key)) % uint32(entryCount))
 }
 
-func (r *CacheImpl) Get(key string) (string, error) {
+type kv struct {
+	key       string
+	val       string
+	expiredAt int // ms
+	ttl       int // ms
+}
+
+func (r *CacheImpl) get(key string) (*kv, error) {
 	keyLen := len(key)
 
 	if r.err != nil {
-		return "", r.err
+		return nil, r.err
 	} else if keyLen > MaxLengthKey {
-		return "", KeyTooLong
+		return nil, KeyTooLong
 	} else if keyLen == 0 {
-		return "", KeyTooShort
+		return nil, KeyTooShort
 	}
 
 	region := r.region(key) // 0 ~ mod-1
@@ -117,32 +124,43 @@ func (r *CacheImpl) Get(key string) (string, error) {
 			// 当前有数据，判断key是否和给定的key重合
 			keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			keyBytesFromMM := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
 			if !bytes.Equal(keyBytes, keyBytesFromMM) {
 				continue
 			}
 
-			expiredTimestampMS, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
-			if int(time.Now().UnixNano()/int64(1000000)) > expiredTimestampMS {
+			expiredAt, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
+			now := int(time.Now().UnixNano() / int64(1000000))
+			ttl := expiredAt - now
+			if ttl < 0 {
 				// 过期了
 				// TODO: delete
-				return "", NotFound
+				return nil, NotFound
 			}
 
 			valLen, err := binaryInt(r.mmap[currentOffset+3 : currentOffset+5])
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), nil
+			return &kv{key: key, val: string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]), expiredAt: expiredAt, ttl: ttl}, nil
 		} else {
 			// 全部flag为1，但是没有key重合的
 			// 或者flag为0
 		}
 	}
 
-	return "", NotFound
+	return nil, NotFound
+}
+
+func (r *CacheImpl) Get(key string) (string, error) {
+	kv, err := r.get(key)
+	if err != nil {
+		return "", err
+	}
+
+	return kv.val, nil
 }
 
 func (r *CacheImpl) Set(key, val string, ttl time.Duration) error {
@@ -207,8 +225,10 @@ func (r *CacheImpl) Set(key, val string, ttl time.Duration) error {
 }
 
 func (r *CacheImpl) TTL(key string) (time.Duration, error) {
-	if r.err != nil {
-		return 0, r.err
+	kv, err := r.get(key)
+	if err != nil {
+		return 0, err
 	}
-	panic("implement me")
+
+	return time.Duration(kv.ttl) * time.Millisecond, nil
 }

@@ -2,6 +2,7 @@ package filecache_test
 
 import (
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestNew(t *testing.T) {
 		as.Equal("v", v)
 	})
 
-	t.Run("expire ttl", func(t *testing.T) {
+	t.Run("expired", func(t *testing.T) {
 		as.Nil(c.Set("k", "v", time.Second))
 
 		time.Sleep(time.Second)
@@ -43,4 +44,24 @@ func TestNew(t *testing.T) {
 		as.Equal(filecache.NotFound, err)
 		as.Equal("", v)
 	})
+
+	t.Run("ttl", func(t *testing.T) {
+		as.Nil(c.Set("k", "v", time.Second))
+
+		ttl, err := c.TTL("k")
+		as.Nil(err)
+		as.True(ttl <= time.Second && ttl >= time.Second-10*time.Millisecond)
+	})
+}
+
+func BenchmarkCacheImpl_Get(b *testing.B) {
+	as := assert.New(b)
+
+	as.Nil(os.Remove("./test"))
+	c := filecache.New("./test")
+
+	for i := 0; i < b.N; i++ {
+		j := strconv.Itoa(i)
+		as.Nil(c.Set(j, j, time.Second), i)
+	}
 }
