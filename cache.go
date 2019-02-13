@@ -12,11 +12,18 @@ import (
 	mmap "github.com/Chyroc/filecache/internal/gommap"
 )
 
+type KV struct {
+	Key string
+	Val string
+	TTL time.Duration
+}
+
 type Cache interface {
 	Get(key string) (string, error)
 	Set(key, val string, ttl time.Duration) error
 	TTL(key string) (time.Duration, error)
 	Del(key string) error
+	Range() ([]*KV, error)
 }
 
 func unixMs(ttl time.Duration) int64 {
@@ -46,6 +53,7 @@ var FileSizeTooLarge = errors.New("file size too large(>100M)")
 const bufCount = 20 // 一个buf 5M，20个100M
 const bufSize = 5242880
 const entryCount = 512 // mod
+const entrySize = 10240
 const docLength = 1280
 const docCount = 8
 const docHeaderLength = 1 + 2 + 2 + 7
@@ -175,7 +183,7 @@ func (r *CacheImpl) get(key string) (*kv, error) {
 	keyBytes := []byte(key)
 
 	for j := 0; j < int(r.fileStat.Size())/bufSize; j++ {
-		regionOffset := j*bufSize + region*docCount*docLength
+		regionOffset := j*bufSize + region*entrySize
 		for i := 0; i < docCount; i++ {
 			currentOffset := regionOffset + docLength*i
 			if r.mmap[currentOffset] == 1 {
@@ -194,7 +202,7 @@ func (r *CacheImpl) get(key string) (*kv, error) {
 				ttl := expiredAt - now
 				if ttl < 0 {
 					// 过期了
-					// TODO: delete
+					// TODO: 删除
 					return nil, NotFound
 				}
 
@@ -318,4 +326,45 @@ func (r *CacheImpl) Del(key string) error {
 
 	r.mmap[kv.offset] = 0
 	return nil
+}
+
+func (r *CacheImpl) Range() ([]*KV, error) {
+	var kvs []*KV
+	for bufID := 0; bufID < int(r.fileStat.Size())/bufSize; bufID++ {
+		for entryID := 0; entryID < entryCount; entryID++ {
+			regionOffset := bufID*bufSize + entryID*entrySize
+			for docID := 0; docID < docCount; docID++ {
+				currentOffset := regionOffset + docLength*docID
+				if r.mmap[currentOffset] == 1 {
+					keyLen, err := binaryInt(r.mmap[currentOffset+1 : currentOffset+3])
+					if err != nil {
+						return nil, err
+					}
+					keyBytes := r.mmap[currentOffset+docHeaderLength : currentOffset+docHeaderLength+keyLen]
+
+					expiredAt, err := binaryInt(r.mmap[currentOffset+5 : currentOffset+docHeaderLength])
+					now := int(time.Now().UnixNano() / int64(1000000))
+					ttl := expiredAt - now
+					if ttl < 0 {
+						if err := r.Del(string(keyBytes)); err != nil {
+							return nil, err
+						}
+						continue
+					}
+
+					valLen, err := binaryInt(r.mmap[currentOffset+3 : currentOffset+5])
+					if err != nil {
+						return nil, err
+					}
+					kvs = append(kvs, &KV{
+						Key: string(keyBytes),
+						Val: string(r.mmap[currentOffset+docHeaderLength+keyLen : currentOffset+docHeaderLength+keyLen+valLen]),
+						TTL: time.Duration(currentOffset) * time.Millisecond,
+					})
+				}
+			}
+		}
+	}
+
+	return kvs, nil
 }

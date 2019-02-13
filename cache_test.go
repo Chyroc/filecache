@@ -1,6 +1,7 @@
 package filecache_test
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -123,5 +124,23 @@ func TestNew(t *testing.T) {
 			j := strconv.Itoa(i)
 			as.Nil(c.Set(j, j, time.Minute), i)
 		}
+	})
+
+	t.Run("range", func(t *testing.T) {
+		as.Nil(os.Remove("./test"))
+		c = filecache.New("./test").(*filecache.CacheImpl)
+
+		for i := 0; i < 1000; i++ {
+			j := strconv.Itoa(i)
+			as.Nil(c.Set(j, j, time.Minute), i)
+		}
+
+		kvs, err := c.Range()
+		as.Nil(err)
+		for _, v := range kvs {
+			fmt.Println(v)
+			as.Equal(v.Key, v.Val)
+		}
+		as.Len(kvs,1000)
 	})
 }
