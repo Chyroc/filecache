@@ -22,6 +22,7 @@ type Cache interface {
 	Get(key string) (string, error)
 	Set(key, val string, ttl time.Duration) error
 	TTL(key string) (time.Duration, error)
+	Expire(key string, ttl time.Duration) error
 	Del(key string) error
 	Range() ([]*KV, error)
 }
@@ -313,6 +314,17 @@ func (r *CacheImpl) TTL(key string) (time.Duration, error) {
 	}
 
 	return time.Duration(kv.ttl) * time.Millisecond, nil
+}
+
+func (r *CacheImpl) Expire(key string, ttl time.Duration) error {
+	kv, err := r.get(key)
+	if err != nil {
+		return err
+	}
+
+	binary.PutVarint(r.mmap[kv.offset+5:kv.offset+docHeaderLength], unixMs(ttl))
+
+	return nil
 }
 
 func (r *CacheImpl) Del(key string) error {

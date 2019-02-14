@@ -99,6 +99,20 @@ func TestNew(t *testing.T) {
 		as.True(ttl <= time.Second && ttl >= time.Second-10*time.Millisecond)
 	})
 
+	t.Run("expire", func(t *testing.T) {
+		as.Nil(c.Set("k", "v", time.Second))
+
+		ttl, err := c.TTL("k")
+		as.Nil(err)
+		as.True(ttl <= time.Second && ttl >= time.Second-10*time.Millisecond)
+
+		as.Nil(c.Expire("k", time.Minute))
+
+		ttl, err = c.TTL("k")
+		as.Nil(err)
+		as.True(ttl <= time.Minute && ttl >= time.Minute-10*time.Millisecond)
+	})
+
 	t.Run("invalid length", func(t *testing.T) {
 		var err error
 		long := strings.Repeat("x", 9999)
